@@ -1,25 +1,26 @@
 <div align="center">
 
-<img src="Images/zillow_logo.png" alt="Zillow Logo" title="Zillow Logo" width="300" height="100" align="center"/>
+<img src="Images/Zillow_Logo.jpeg" alt="Zillow Logo" title="Zillow Logo" width="1000" height="200" align="center"/>
     
 # README
 
-### by Jeanette Schulz 2021-12-13
+### by Joann Balraj and Jeanette Schulz 
+### January 07, 2022
 
 </div align="center">
     
 <hr style="border:2px solid blue"> </hr>
 
-# Project Goal
-Zillow has a model that is designed to predict the property tax assessed values ('taxvaluedollarcnt') of Single Family Properties that had a transaction during 2017. The goal of this project is to look for insights that can help possibly improve this model, and make recommendations on how to improve it. 
-
-
+# Project Description
+### What Is Zillow?
+> "As the most-visited real estate website in the United States, Zillow and its affiliates offer customers an on-demand experience for selling, buying, renting and financing with transparency and nearly seamless end-to-end service. Zillow Offers buys and sells homes directly in dozens of markets across the country, allowing sellers control over their timeline. Zillow Home Loans, our affiliate lender, provides our customers with an easy option to get pre-approved and secure financing for their next home purchase. Zillow recently launched Zillow Homes, Inc., a licensed brokerage entity, to streamline Zillow Offers transactions."  [zillow.com](https://www.zillow.com/z/corp/about/)
+### What is this about?
+As the most-visited real estate website in the United States, Zillow and its affiliates offer customers an on-demand experience for selling, buying, renting and financing with transparency and nearly seamless end-to-end service. This is all in thanks to Zillow's throughly tested model that helps them predict the value of almost any house. However as we know, the housing market is constantly fluctuating and changing. Thus, Zillow's model should also be constantly changing and improved to ensure the best, most up to date home value approximations. With a focus in utilizing clustering methodologies, we will analye the data provided from 2017 transactions to see if any new features can be engineered. We will then develope models with these features to compare to zillows current model, and deliver both recommendations for what worked and didn't work in the form of a video presentation.
 
 <hr style="border:2px solid blue"> </hr>
 
-# Project Description
-As the most-visited real estate website in the United States, Zillow and its affiliates offer customers an on-demand experience for selling, buying, renting and financing with transparency and nearly seamless end-to-end service. This is all in thanks to Zillow's throughly tested model that helps them predict the value of almost any house. However as we know, the housing market is constantly fluctuating and changing. Thus, Zillow's model should also be constantly changing and improved to ensure the best, most up to date home value approximations. We will analye the data provided from 2017 transactions to see if any new features can be engineered, develope models with these features to compare to zillows current model, and deliver both recommendations for what worked and didn't work in the form of a presentation.
-
+# Project Goal
+Zillow has a model that is designed to predict the property tax assessed values ('taxvaluedollarcnt') of Single Family Properties that had a transaction during 2017. The goal of this project is to look for insights that can help possibly improve this model, and make recommendations on how to improve it. 
 
 <hr style="border:2px solid blue"> </hr>
 
@@ -31,22 +32,34 @@ As the most-visited real estate website in the United States, Zillow and its aff
 - Ensure my wrangle.py modules are well documents and functional
 
 <b>Acquisition </b>  
-- Obtain Zillow data from Codeup mySQL database via wrangle.py
+- Obtain access to Codeup mySQL database via a `env.py` file
+- Gather Zillow data from Codeup mySQL database using a SQL query
+- Create a `wrangle.py` file to make future acquisition easier
 
 <b>Preparation</b>  
-- Clean Zillow data from Codeup mySQL database via wrangle.py
+- Create a `workbook.ipynb` file to put all work in 
+- Clean aquired Zillow data:
+    - remove missing values, 
+    - inspect data integrity issues 
+    - ensure columns are proper data type
+    - reduce outliers
+- Create a scale function for future modeling
+- Create split function for future modeling
+- Add all new functions to `wrangle.py`
 
 <b>Exploration and Pre-processing</b>  
-- Ask and answer statistical questions about the Zillow data
-- Visually represent findings with charts
+- Explore the target variable using visualization and statistical testing
+- Use clustering methodologies to explore the data and attempt at least 3 combinations of features. 
+- Summarize takeaways and conclusions
 
 <b>Modeling</b>  
 - Split data appropriately 
-- Use knowledge acquired from statistical questions to help choose a model
-- Create a predictions csv file from the best model
+- Establish and evaluate baseline model
+- Create at least 4 different models and compare their performance. 
+
 
 <b>Deliver</b>  
-- Deliver a 5 minute presentation via a jupyter notebook walkthrough 
+- Deliver a 5 minute video presentation via a jupyter notebook walkthrough 
 - Answer questions about my code, process, and findings
 
 
@@ -71,11 +84,11 @@ As the most-visited real estate website in the United States, Zillow and its aff
 
 You will need your own env file with database credentials along with all the necessary files listed below to run the `"Final Report"` notebook.
 
- 1. Read this README.md
- 2. Download at the aquire.py and Final Report.ipynb file into your working directory
- 3. Create a .gitignore for your .env file
- 4. Add your own env file to your directory with username, password, and host address. 
- 5. Run the final_report.ipynb notebook
+ 1. Read this README.md (check!)
+ 2. Download at the `wrangle.py` and `Final_Report.ipynb` file into your working directory
+ 3. Create a `.gitignore` for your `env.py` file
+ 4. Add your own `env.py` file to your directory with username, password, and host address. 
+ 5. Run the `Final_Report.ipynb` in a jupyter notebook
 
 <hr style="border:2px solid blue"> </hr>
 
@@ -86,3 +99,6 @@ You will need your own env file with database credentials along with all the nec
 2. Are houses with a high bedroom count but a low bathroom count, less valueable?
 3. Are houses of a certain year built more valuable than others?
 4. Are there certain countys that are harder to predict taxvaluedollarcnt for?
+5. Is there a linear correlation between square footage and tax value?
+6. Is there a linear correlation between number of bathrooms and tax value?
+7. Is there a linear correlation between number of bedrooms and tax value?
