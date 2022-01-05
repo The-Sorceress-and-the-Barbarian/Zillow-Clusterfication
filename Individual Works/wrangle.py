@@ -46,7 +46,7 @@ def get_zillow_data():
                                      yearbuilt, 
                                      regionidzip, 
                                      fips,
-                                     taxvaluedollarcnt
+                                     taxvaluedollarcnt,
                                      logerror
                               FROM properties_2017
                               JOIN predictions_2017 USING (parcelid)
@@ -57,7 +57,7 @@ def get_zillow_data():
         df.to_csv('zillow2017.csv')
     
     # Renaming column names to one's I like better
-        df = df.rename(columns = {'bedroomcnt':'bedrooms', 
+    df = df.rename(columns = {'bedroomcnt':'bedrooms', 
                               'bathroomcnt':'bathrooms', 
                               'calculatedfinishedsquarefeet':'squarefeet',
                               'taxvaluedollarcnt':'tax_value', 
