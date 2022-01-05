@@ -11,7 +11,21 @@ from env import host, user, password
 import os
 import pandas as pd
 import sklearn.preprocessing
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ignore warnings
+import warnings
+warnings.filterwarnings("ignore")
+
+from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import explained_variance_score
 
 ########################################### mySQL Connection ###########################################
 
@@ -46,7 +60,8 @@ def get_zillow_data():
                                      yearbuilt, 
                                      regionidzip, 
                                      fips,
-                                     taxvaluedollarcnt
+                                     taxvaluedollarcnt,
+                                     logerror
                               FROM properties_2017
                               JOIN predictions_2017 USING (parcelid)
                               WHERE propertylandusetypeid = 261;""", 
@@ -60,7 +75,8 @@ def get_zillow_data():
                               'bathroomcnt':'bathrooms', 
                               'calculatedfinishedsquarefeet':'squarefeet',
                               'taxvaluedollarcnt':'tax_value', 
-                              'yearbuilt':'year_built'})   
+                              'yearbuilt':'year_built',
+                              'logerror': 'logerror'})   
     return df
 ########################################### Clean Zillow Dataframe ###########################################
 
@@ -96,6 +112,7 @@ def prepare_zillow (zillow):
     zillow["year_built"] = zillow.year_built.astype(int)
     zillow["fips"] = zillow.fips.astype(int)
 
+    
     # Remove extreme outliers (there will still be a few, but our data should be less skewed)
     zillow = remove_outliers(zillow, 1.5, ['bedrooms', 'bathrooms', 'squarefeet', 'tax_value'])
     
@@ -141,9 +158,9 @@ def Min_Max_Scaler(train, validate, test):
 ########################################### Null Finders ###########################################
 
 def nulls_by_col(df):
-    '''
-    Create a description
-    '''
+    """
+    Renders a dataframe that shows the nulls for every column
+    """
     num_missing = df.isnull().sum()
     rows = df.shape[0]
     prcnt_miss = num_missing / rows * 100
@@ -152,7 +169,7 @@ def nulls_by_col(df):
 
 def nulls_by_row(df):
     """
-    Create a description
+    Renders a dataframe that shows the nulls for every row
     """
     num_missing = df.isnull().sum(axis=1)
     prcnt_miss = num_missing / df.shape[1] * 100
@@ -161,3 +178,176 @@ def nulls_by_row(df):
     .groupby(['num_cols_missing', 'percent_cols_missing']).count()\
     .rename(index=str, columns={'customer_id': 'num_rows'}).reset_index()
     return rows_missing
+
+########################################### Explore Zillow Dataframe ###########################################
+
+
+def summarize(df):
+    '''
+    summarize will take in a single argument (a pandas dataframe)
+    and output to console various statistics on said dataframe, including:
+    # .head()
+    # .info()
+    # .describe()
+    # value_counts()
+    # observation of nulls in the dataframe
+    '''
+    print('=====================================================\n\n')
+    print('Dataframe head: ')
+    print(df.head(3).to_markdown())
+    print('=====================================================\n\n')
+    print('Dataframe info: ')
+    print(df.info())
+    print('=====================================================\n\n')
+    print('Dataframe Description: ')
+    print(df.describe().to_markdown())
+    num_cols = [col for col in df.columns if df[col].dtype != 'O']
+    cat_cols = [col for col in df.columns if col not in num_cols]
+    print('=====================================================')
+    print('DataFrame value counts: ')
+    for col in df.columns:
+        if col in cat_cols:
+            print(df[col].value_counts())
+        else:
+            print(df[col].value_counts(bins=10, sort=False))
+    print('=====================================================')
+    print('nulls in dataframe by column: ')
+    print(nulls_by_col(df))
+    print('=====================================================')
+    print('nulls in dataframe by row: ')
+    print(nulls_by_row(df))
+    print('============================================')
+
+
+
+### functions to create clusters and scatter-plot: ###
+
+def create_cluster(df, X, k):
+    
+    """ 
+    Takes in df, X (dataframe with variables you want to cluster on) and k
+    # It scales the X, calcuates the clusters and return train (with clusters), the Scaled dataframe,
+    # the scaler and kmeans object and unscaled centroids as a dataframe
+    """
+    
+    scaler = MinMaxScaler().fit(X)
+    X_scaled = pd.DataFrame(scaler.transform(X), columns=X.columns.values).set_index([X.index.values])
+
+    ## sklearn implementation of KMeans
+
+    #define the thing
+    kmeans = KMeans(n_clusters = k, random_state = 321)
+
+    # fit the thing
+    kmeans.fit(X_scaled)
+
+    # Use (predict using) the thing
+    kmeans.predict(X_scaled)
+    df['cluster'] = kmeans.predict(X_scaled)
+    df['cluster'] = 'cluster_' + df.cluster.astype(str)
+
+    #Create centroids of clusters
+    centroids = pd.DataFrame(scaler.inverse_transform(kmeans.cluster_centers_), columns=X_scaled.columns)
+
+    return df, X_scaled, scaler, kmeans, centroids
+
+
+def create_scatter_plot(x,y,df,kmeans, X_scaled, scaler):
+    
+    """ 
+    Takes in x and y (variable names as strings, along with returned objects from previous
+    function create_cluster and creates a plot
+    """
+    
+    plt.figure(figsize=(14, 9))
+    sns.scatterplot(x = x, y = y, data = df, hue = 'cluster')
+    centroids = pd.DataFrame(scaler.inverse_transform(kmeans.cluster_centers_), columns=X_scaled.columns)
+    centroids.plot.scatter(y=y, x= x, ax=plt.gca(), alpha=.30, s=500, c='black')
+    plt.title('Visualizing Clusters')
+
+
+def make_metric_df(y, y_pred, model_name, metric_df):
+    if metric_df.size ==0:
+        metric_df = pd.DataFrame(data=[
+            {
+            'model': model_name, 
+            'RMSE_validate': mean_squared_error(
+                y,
+                y_pred) ** .5,
+            'r^2_validate': explained_variance_score(
+                y,
+                y_pred)
+            }])
+        return metric_df
+    else:
+        return metric_df.append(
+        {
+            'model': model_name, 
+            'RMSE_validate': mean_squared_error(
+                y,
+                y_pred) ** .5,
+            'r^2_validate': explained_variance_score(
+                y,
+                y_pred)
+        }, ignore_index=True)
+
+    
+
+def inertia_plot(X):
+    with plt.style.context('seaborn-whitegrid'):
+        plt.figure(figsize=(9, 6))
+        pd.Series({k: KMeans(k).fit(X).inertia_ for k in range(2, 12)}).plot(marker='x')
+        plt.xticks(range(2, 12))
+        plt.xlabel('k')
+        plt.ylabel('inertia')
+        plt.title('Change in inertia as k increases')          
+
+def plot_actual(train, grp_by_var, x, y):
+    plt.figure(figsize=(14, 9))
+    sns.scatterplot(x = x, y = y, data = train, hue = grp_by_var)
+
+    #for cluster, subset in train.groupby(grp_by_var):
+       # x = x
+        #y = y
+        #print(x,y)
+       # plt.scatter(subset.x,subset.y, label=str(cluster), alpha=.6)
+     #centroids.plot.scatter(y=y_var, x=x_var, c='black', marker='x', s=1000, ax=plt.gca(), label='centroid')
+
+    plt.legend()
+    plt.xlabel(x)
+    plt.ylabel(y)
+    plt.title('Visualizing Actual Data - Not Clusters')
+    plt.show()      
+
+
+
+def calc_cluster_mean(train, cluster):
+    """
+    Looping through all the regions in the cluster to calculate it's mean and compare it
+    to the overall log error mean to see if it may be of significance
+    """
+
+
+    count = train.cluster.max()
+
+    print (count)
+
+    logerror_mean =  train.logerror.mean()
+
+    i = 0
+    while i <= count:
+
+            region_mean = train[train.cluster== i].logerror.mean()
+        
+            difference = abs(logerror_mean - region_mean)
+    
+            region_mean_df = pd.DataFrame(data=[
+                {
+                    'region': i,
+                    'mean':region_mean,
+                    'difference': difference
+                }
+                ])
+        
+            print(region_mean_df)
+            i += 1
