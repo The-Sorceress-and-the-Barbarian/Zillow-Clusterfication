@@ -62,7 +62,7 @@ def get_zillow_data():
                                      fips,
                                      taxvaluedollarcnt,
                                      logerror,
-                                     month,
+                                     transactiondate,
                                      longitude,
                                      latitude
                               FROM properties_2017
