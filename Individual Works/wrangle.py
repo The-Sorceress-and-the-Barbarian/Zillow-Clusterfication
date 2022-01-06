@@ -76,11 +76,7 @@ def get_zillow_data():
                               'calculatedfinishedsquarefeet':'squarefeet',
                               'taxvaluedollarcnt':'tax_value', 
                               'yearbuilt':'year_built',
-<<<<<<< HEAD
-                              'logerror': 'logerror'})   
-=======
                               'logerror':'logerror'})   
->>>>>>> ccbb26506d56194608ea918a9d8767230c43da7c
     return df
 ########################################### Clean Zillow Dataframe ###########################################
 
