@@ -61,7 +61,10 @@ def get_zillow_data():
                                      regionidzip, 
                                      fips,
                                      taxvaluedollarcnt,
-                                     logerror
+                                     logerror,
+                                     transactiondate,
+                                     longitude,
+                                     latitude
                               FROM properties_2017
                               JOIN predictions_2017 USING (parcelid)
                               WHERE propertylandusetypeid = 261;""", 
@@ -76,7 +79,7 @@ def get_zillow_data():
                               'calculatedfinishedsquarefeet':'squarefeet',
                               'taxvaluedollarcnt':'tax_value', 
                               'yearbuilt':'year_built',
-                              'logerror':'logerror'})   
+                              'logerror': 'logerror'})   
     return df
 ########################################### Clean Zillow Dataframe ###########################################
 

@@ -70,13 +70,14 @@ Zillow has a model that is designed to predict the property tax assessed values 
 
 | Feature                       | Datatype                  | Description                                                        |
 |:------------------------------|:--------------------------|:-------------------------------------------------------------------|
-| bathroomcnt                   | 52442 non-null  float64 | Number of bathrooms in home including fractional bathrooms
-| bedroomcnt                    | 52442 non-null  float64 | Number of bedrooms in home 
-| calculatedfinishedsquarefeet  | 52360 non-null  float64 | Calculated total finished living area of the home 
-| fips                          | 52442 non-null  float64 | Federal Information Processing Standard code 
-| yearbuilt                     | 52326 non-null  float64 | The Year the principal residence was built 
-| taxvaluedollarcnt             | 52441 non-null  float64 | The total tax assessed value of the parcel
-| regionidzip                   | 52416 non-null  float64 | Zip code in which the property is located
+| bathroomcnt                   | 52442 non-null  float64   | Number of bathrooms in home including fractional bathrooms
+| bedroomcnt                    | 52442 non-null  float64   | Number of bedrooms in home 
+| calculatedfinishedsquarefeet  | 52360 non-null  float64   | Calculated total finished living area of the home 
+| fips                          | 52442 non-null  float64   | Federal Information Processing Standard code 
+| yearbuilt                     | 52326 non-null  float64   | The Year the principal residence was built 
+| taxvaluedollarcnt             | 52441 non-null  float64   | The total tax assessed value of the parcel
+| regionidzip                   | 52416 non-null  float64   | Zip code in which the property is located
+| logerror	                    | 52416 non-null  float64   | The log error of actual vs predicted home price
 
 <hr style="border:2px solid blue"> </hr>
 
