@@ -1,6 +1,6 @@
 ############################################# Introduction #############################################
 
-# This WRANGLE.py file is for the Codeup Zillow Project utilizing Clustering methodologies.
+# This  wrangle.py file is for the Codeup Zillow Project utilizing Clustering methodologies.
 
 # These functions are the combined works from Codeup cohorts Joann Balraj and Jeanette Schulz
 # and are here to create a cleaner work enviroment in jupyter notebook for future presenting. 
@@ -11,7 +11,24 @@ from env import host, user, password
 import os
 import pandas as pd
 import sklearn.preprocessing
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ignore warnings
+import warnings
+warnings.filterwarnings("ignore")
+
+from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import explained_variance_score
+from sklearn.linear_model import LinearRegression, LassoLars, TweedieRegressor
+from sklearn.preprocessing import PolynomialFeatures
+
 
 ########################################### mySQL Connection ###########################################
 
@@ -46,7 +63,11 @@ def get_zillow_data():
                                      yearbuilt, 
                                      regionidzip, 
                                      fips,
-                                     taxvaluedollarcnt
+                                     taxvaluedollarcnt,
+                                     logerror,
+                                     transactiondate,
+                                     longitude,
+                                     latitude
                               FROM properties_2017
                               JOIN predictions_2017 USING (parcelid)
                               WHERE propertylandusetypeid = 261;""", 
@@ -60,7 +81,8 @@ def get_zillow_data():
                               'bathroomcnt':'bathrooms', 
                               'calculatedfinishedsquarefeet':'squarefeet',
                               'taxvaluedollarcnt':'tax_value', 
-                              'yearbuilt':'year_built'})   
+                              'yearbuilt':'year_built',
+                              'logerror': 'logerror'})   
     return df
 ########################################### Clean Zillow Dataframe ###########################################
 
@@ -96,6 +118,7 @@ def prepare_zillow (zillow):
     zillow["year_built"] = zillow.year_built.astype(int)
     zillow["fips"] = zillow.fips.astype(int)
 
+    
     # Remove extreme outliers (there will still be a few, but our data should be less skewed)
     zillow = remove_outliers(zillow, 1.5, ['bedrooms', 'bathrooms', 'squarefeet', 'tax_value'])
     
@@ -141,9 +164,9 @@ def Min_Max_Scaler(train, validate, test):
 ########################################### Null Finders ###########################################
 
 def nulls_by_col(df):
-    '''
-    Create a description
-    '''
+    """
+    Renders a dataframe that shows the nulls for every column
+    """
     num_missing = df.isnull().sum()
     rows = df.shape[0]
     prcnt_miss = num_missing / rows * 100
@@ -152,7 +175,7 @@ def nulls_by_col(df):
 
 def nulls_by_row(df):
     """
-    Create a description
+    Renders a dataframe that shows the nulls for every row
     """
     num_missing = df.isnull().sum(axis=1)
     prcnt_miss = num_missing / df.shape[1] * 100
@@ -161,3 +184,341 @@ def nulls_by_row(df):
     .groupby(['num_cols_missing', 'percent_cols_missing']).count()\
     .rename(index=str, columns={'customer_id': 'num_rows'}).reset_index()
     return rows_missing
+
+########################################### Explore Zillow Dataframe ###########################################
+
+### functions to create clusters and scatter-plot: ###
+
+def create_cluster(df, X, k):
+    
+    """ 
+    Takes in df, X (dataframe with variables you want to cluster on) and k
+    # It scales the X, calcuates the clusters and return train (with clusters), the Scaled dataframe,
+    # the scaler and kmeans object and unscaled centroids as a dataframe
+    """
+    
+    scaler = MinMaxScaler().fit(X)
+    X_scaled = pd.DataFrame(scaler.transform(X), columns=X.columns.values).set_index([X.index.values])
+
+    ## sklearn implementation of KMeans
+
+    #define the thing
+    kmeans = KMeans(n_clusters = k, random_state = 321)
+
+    # fit the thing
+    kmeans.fit(X_scaled)
+
+    # Use (predict using) the thing
+    kmeans.predict(X_scaled)
+    df['cluster'] = kmeans.predict(X_scaled)
+    df['cluster'] = 'cluster_' + df.cluster.astype(str)
+
+    #Create centroids of clusters
+    centroids = pd.DataFrame(scaler.inverse_transform(kmeans.cluster_centers_), columns=X_scaled.columns)
+
+    return df, X_scaled, scaler, kmeans, centroids
+
+
+def create_scatter_plot(x,y,df,kmeans, X_scaled, scaler):
+    
+    """ 
+    Takes in x and y (variable names as strings, along with returned objects from previous
+    function create_cluster and creates a plot
+    """
+    
+    plt.figure(figsize=(14, 9))
+    sns.scatterplot(x = x, y = y, data = df, hue = 'cluster')
+    centroids = pd.DataFrame(scaler.inverse_transform(kmeans.cluster_centers_), columns=X_scaled.columns)
+    centroids.plot.scatter(y=y, x= x, ax=plt.gca(), alpha=.30, s=500, c='black')
+    plt.title('Visualizing Clusters')
+
+
+def make_metric_df(y, y_pred, model_name, metric_df):
+    if metric_df.size ==0:
+        metric_df = pd.DataFrame(data=[
+            {
+            'model': model_name, 
+            'RMSE_validate': mean_squared_error(
+                y,
+                y_pred) ** .5,
+            'r^2_validate': explained_variance_score(
+                y,
+                y_pred)
+            }])
+        return metric_df
+    else:
+        return metric_df.append(
+        {
+            'model': model_name, 
+            'RMSE_validate': mean_squared_error(
+                y,
+                y_pred) ** .5,
+            'r^2_validate': explained_variance_score(
+                y,
+                y_pred)
+        }, ignore_index=True)
+
+    
+
+def inertia_plot(X):
+    with plt.style.context('seaborn-whitegrid'):
+        plt.figure(figsize=(9, 6))
+        pd.Series({k: KMeans(k).fit(X).inertia_ for k in range(2, 12)}).plot(marker='x')
+        plt.xticks(range(2, 12))
+        plt.xlabel('k')
+        plt.ylabel('inertia')
+        plt.title('Change in inertia as k increases')          
+
+def plot_actual(train, grp_by_var, x, y):
+    plt.figure(figsize=(14, 9))
+    sns.scatterplot(x = x, y = y, data = train, hue = grp_by_var)
+
+    #for cluster, subset in train.groupby(grp_by_var):
+       # x = x
+        #y = y
+        #print(x,y)
+       # plt.scatter(subset.x,subset.y, label=str(cluster), alpha=.6)
+     #centroids.plot.scatter(y=y_var, x=x_var, c='black', marker='x', s=1000, ax=plt.gca(), label='centroid')
+
+    plt.legend()
+    plt.xlabel(x)
+    plt.ylabel(y)
+    plt.title('Visualizing Actual Data - Not Clusters')
+    plt.show()      
+
+
+
+def calc_cluster_mean(train, cluster):
+    """
+    Looping through all the regions in the cluster to calculate it's mean and compare it
+    to the overall log error mean to see if it may be of significance
+    """
+
+
+    count = train.cluster.max()
+
+    print (count)
+
+    logerror_mean =  train.logerror.mean()
+
+    i = 0
+    while i <= count:
+
+            region_mean = train[train.cluster== i].logerror.mean()
+        
+            difference = abs(logerror_mean - region_mean)
+    
+            region_mean_df = pd.DataFrame(data=[
+                {
+                    'region': i,
+                    'mean':region_mean,
+                    'difference': difference
+                }
+                ])
+        
+            print(region_mean_df)
+            i += 1
+
+########################################### Model Zillow Dataframe ###########################################
+
+def return_model_results(train,validate,test):
+    # Prepare Variables for Modeling
+    # set up x and y 
+    X_train = train[['latitude','longitude','squarefeet','bedrooms', 'bathrooms']]
+    X_validate = validate[['latitude','longitude','squarefeet','bedrooms', 'bathrooms']] 
+    X_test = test[['latitude','longitude','squarefeet','bedrooms','bathrooms']] 
+
+    # scale the data 
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_validate_scaled = scaler.transform(X_validate)
+    X_test_scaled = scaler.transform(X_test)
+
+    y_train = train.logerror
+    y_validate = validate.logerror
+    y_test = test.logerror
+
+    # we need y_train and y_validate to be dataframes to append the new columns with predicted values. 
+    y_train = pd.DataFrame(y_train)
+    y_validate = pd.DataFrame(y_validate)
+    y_test = pd.DataFrame(y_test)
+
+    # BASELINE
+    # 1. Predict logerror_pred_mean
+    logerror_pred_mean = y_train.logerror.mean()
+    y_train['logerror_pred_mean'] = logerror_pred_mean
+    y_validate['logerror_pred_mean'] = logerror_pred_mean
+
+    # 2. compute logerror_pred_median
+    logerror_pred_median = y_train.logerror.median()
+    y_train['logerror_pred_median'] = logerror_pred_median
+    y_validate['logerror_pred_median'] = logerror_pred_median
+
+    # 3. RMSE of logerror_pred_mean
+    rmse_train = mean_squared_error(y_train.logerror,
+                                    y_train.logerror_pred_mean) ** .5
+
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_mean) ** .6
+    rmse_train_2 = mean_squared_error(y_train.logerror,
+                                    y_train.logerror_pred_mean, squared = False)
+
+    rmse_validate_2 = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_mean, squared = False)
+    
+    print("==========================================================")
+    print("RMSE using Mean\nTrain/In-Sample: ", round(rmse_train, 2), 
+        "\nValidate/Out-of-Sample: ", round(rmse_validate, 2))
+
+    # 4. RMSE of logerror_pred_median
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_median) ** .5
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_median) ** .6
+   
+    print("==========================================================")
+    print("RMSE using Median\nTrain/In-Sample: ", round(rmse_train, 2), 
+        "\nValidate/Out-of-Sample: ", round(rmse_validate, 2))
+
+    # create the metric_df as a blank dataframe
+    metric_df = pd.DataFrame()
+
+    # make our first entry into the metric_df with median baseline
+    metric_df =  make_metric_df(y_train.logerror,
+                            y_train.logerror_pred_median,
+                            'median_baseline',
+                            metric_df)
+
+    # OLS REGRESSOR MODEL
+    # make the thing
+    lm = LinearRegression(normalize=True)
+
+    # fit the thing
+    lm.fit(X_train_scaled, y_train.logerror)
+
+    # use the thing! 
+    y_train['logerror_pred_lm'] = lm.predict(X_train_scaled)
+
+    # evaluate: rmse
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_lm) ** (1/2)
+
+    # predict validate
+    y_validate['logerror_pred_lm'] = lm.predict(X_validate_scaled)
+
+    # evaluate: rmse
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_lm) ** (.57)
+
+    print("==========================================================")
+    print("RMSE for OLS using LinearRegression\nTraining/In-Sample: ", rmse_train, 
+        "\nValidation/Out-of-Sample: ", rmse_validate)
+
+    # Add it to the results dataframe
+    metric_df = metric_df.append({
+        'model': 'OLS Regressor', 
+        'RMSE_validate': rmse_validate,
+        'r^2_validate': explained_variance_score(y_validate.logerror, y_validate.logerror_pred_lm)}, ignore_index=True)
+
+    # LASSO_ALPHA_4 MODEL
+    # create the model object
+    lars = LassoLars(alpha=1)
+
+    # fit the model to our training data. We must specify the column in y_train, 
+    # since we have converted it to a dataframe from a series!
+    lars.fit(X_train_scaled, y_train.logerror)
+
+    # predict train
+    y_train['logerror_pred_lars'] = lars.predict(X_train_scaled)
+
+    # evaluate: rmse
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_lars) ** (1/2)
+
+    # predict validate
+    y_validate['logerror_pred_lars'] = lars.predict(X_validate_scaled)
+
+    # evaluate: rmse
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_lars) ** (.6)
+
+    print("==========================================================")
+    print("RMSE for Lasso + Lars\nTraining/In-Sample: ", rmse_train, 
+        "\nValidation/Out-of-Sample: ", rmse_validate)
+
+    # Add it to the results dataframe
+    metric_df =  make_metric_df(y_validate.logerror,
+                y_validate.logerror_pred_lars,
+                'lasso_alpha_4',
+                metric_df)
+
+    # QUADRATIC
+    # make the polynomial features to get a new set of features
+    pf = PolynomialFeatures(degree=2)
+
+    # fit and transform X_train_scaled
+    X_train_degree2 = pf.fit_transform(X_train_scaled)
+
+    # transform X_validate_scaled & X_test_scaled
+    X_validate_degree2 = pf.transform(X_validate_scaled)
+    X_test_degree2 =  pf.transform(X_test_scaled)
+
+    # create the model object
+    lm2 = LinearRegression(normalize=True)
+
+    # fit the model to our training data. We must specify the column in y_train, 
+    # since we have converted it to a dataframe from a series! 
+    lm2.fit(X_train_degree2, y_train.logerror)
+
+    # predict train
+    y_train['logerror_pred_lm2'] = lm2.predict(X_train_degree2)
+
+    # evaluate: rmse
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_lm2) ** (1/2)
+
+    # predict validate
+    y_validate['logerror_pred_lm2'] = lm2.predict(X_validate_degree2)
+
+    # evaluate: rmse
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_lm2) ** (.6)
+    print("==========================================================")
+    print("RMSE for Polynomial Model, degrees=2\nTraining/In-Sample: ", rmse_train, 
+        "\nValidation/Out-of-Sample: ", rmse_validate)
+
+    # Add it to the results dataframe
+    metric_df =  make_metric_df(y_validate.logerror,
+                y_validate.logerror_pred_lm2,
+                'quadratic',
+                metric_df)
+
+    # 3 DEGREE QUADRATIC
+    # make the polynomial features to get a new set of features
+    pf = PolynomialFeatures(degree=3)
+
+    # fit and transform X_train_scaled
+    X_train_degree3 = pf.fit_transform(X_train_scaled)
+
+    # transform X_validate_scaled & X_test_scaled
+    X_validate_degree3 = pf.transform(X_validate_scaled)
+    X_test_degree3 =  pf.transform(X_test_scaled)
+    # create the model object
+    lm3 = LinearRegression(normalize=True)
+
+    # fit the model to our training data. We must specify the column in y_train, 
+    # since we have converted it to a dataframe from a series! 
+    lm3.fit(X_train_degree3, y_train.logerror)
+
+    # predict train
+    y_train['logerror_pred_lm3'] = lm3.predict(X_train_degree3)
+
+    # evaluate: rmse
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_lm3) ** (1/2)
+
+    # predict validate
+    y_validate['logerror_pred_lm3'] = lm3.predict(X_validate_degree3)
+
+    # evaluate: rmse
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_lm3) ** (.6)
+    print("==========================================================")
+    print("RMSE for Polynomial Model, degrees=2\nTraining/In-Sample: ", rmse_train, 
+        "\nValidation/Out-of-Sample: ", rmse_validate)
+    print("==========================================================")
+
+    # Add it to the results dataframe
+    metric_df =  make_metric_df(y_validate.logerror,
+                y_validate.logerror_pred_lm3,
+                '3degree_quadratic',
+                metric_df)
+    return metric_df
