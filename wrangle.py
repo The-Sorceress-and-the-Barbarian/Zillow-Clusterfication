@@ -521,4 +521,32 @@ def return_model_results(train,validate,test):
                 y_validate.logerror_pred_lm3,
                 '3degree_quadratic',
                 metric_df)
+
+    y_test = pd.DataFrame(y_test)
+
+    # USING BEST ON TEST
+    # predict test
+    y_test['logerror_pred_lm'] = lm.predict(X_test_scaled)
+
+    # evaluate: rmse
+    rmse_train = mean_squared_error(y_train.logerror, y_train.logerror_pred_lm) ** (1/2)
+
+    # evaluate: rmse
+    rmse_validate = mean_squared_error(y_validate.logerror, y_validate.logerror_pred_lm) ** (.6)
+
+    # evaluate: rmse
+    rmse_test = mean_squared_error(y_test.logerror, y_test.logerror_pred_lm) ** 0.5
+
+    print("RMSE for OLS using Linear Regression Model\nTraining/In-Sample: ", rmse_train, 
+        "\nValidation/Out-of-Sample: ", rmse_validate,
+        "\nTest/Out-of-Sample: ", rmse_test)
+    print("==========================================================")
+
+    metric_df = make_metric_df(y_test.logerror,
+               y_test.logerror_pred_lm,
+               'TEST_OLS',
+               metric_df)
+    metric_df.style.format(
+                formatter={('RMSE_validate', 'r^2_validate'): "{:.2f}",
+                          })
     return metric_df
